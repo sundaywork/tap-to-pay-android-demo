@@ -2,6 +2,7 @@ package com.example.taptopayandroid
 
 import com.example.taptopayandroid.BuildConfig
 import com.example.taptopayandroid.PaymentIntentCreationResponse
+import android.util.Log
 import com.stripe.stripeterminal.external.models.ConnectionTokenException
 import okhttp3.OkHttpClient
 import retrofit2.Callback
@@ -28,11 +29,14 @@ object ApiClient {
         try {
             val result = service.getConnectionToken().execute()
             if (result.isSuccessful && result.body() != null) {
+                Log.i("TapToPay", "Connection token fetched successfully")
                 return result.body()!!.secret
             } else {
+                Log.e("TapToPay", "Connection token failed: ${result.code()} ${result.message()}")
                 throw ConnectionTokenException("Creating connection token failed")
             }
         } catch (e: IOException) {
+            Log.e("TapToPay", "Connection token network error", e)
             throw ConnectionTokenException("Creating connection token failed", e)
         }
     }

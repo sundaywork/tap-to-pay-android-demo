@@ -24,7 +24,7 @@
         android:id="@+id/price_input_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Price: "
+        android:text="Price (NZD): "
         android:textSize="17dp"
         android:textColor="#414552"
         app:layout_constraintBottom_toBottomOf="parent"

@@ -7,9 +7,9 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -33,16 +33,18 @@ class MainActivity : AppCompatActivity(), NavigationListener {
         ::onPermissionResult
     )
 
-    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         navigateTo(ConnectReaderFragment.TAG, ConnectReaderFragment(), false)
 
-        requestPermissionsIfNecessarySdk31()
+        // 延迟到 Activity 完全就绪后再请求权限，避免部分设备上权限弹窗不显示
+        findViewById<android.view.View>(R.id.container).post {
+            requestPermissionsIfNecessary()
+        }
 
-        if (
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.BLUETOOTH_CONNECT
@@ -58,20 +60,24 @@ class MainActivity : AppCompatActivity(), NavigationListener {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun requestPermissionsIfNecessarySdk31() {
-        // Check for location and bluetooth permissions
+    private fun requestPermissionsIfNecessary() {
         val deniedPermissions = mutableListOf<String>().apply {
             if (!isGranted(Manifest.permission.ACCESS_FINE_LOCATION)) add(Manifest.permission.ACCESS_FINE_LOCATION)
-            if (!isGranted(Manifest.permission.BLUETOOTH_CONNECT)) add(Manifest.permission.BLUETOOTH_CONNECT)
-            if (!isGranted(Manifest.permission.BLUETOOTH_SCAN)) add(Manifest.permission.BLUETOOTH_SCAN)
+            // BLUETOOTH_CONNECT 和 BLUETOOTH_SCAN 仅在 Android 12 (API 31) 及以上需要
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (!isGranted(Manifest.permission.BLUETOOTH_CONNECT)) add(Manifest.permission.BLUETOOTH_CONNECT)
+                if (!isGranted(Manifest.permission.BLUETOOTH_SCAN)) add(Manifest.permission.BLUETOOTH_SCAN)
+            }
         }.toTypedArray()
 
         if (deniedPermissions.isNotEmpty()) {
-            // If we don't have them yet, request them before doing anything else
+            Log.i(TAG, "Requesting permissions: ${deniedPermissions.joinToString()}")
             requestPermissionLauncher.launch(deniedPermissions)
-        } else if (!Terminal.isInitialized() && verifyGpsEnabled()) {
-            initialize()
+        } else {
+            Log.i(TAG, "All permissions already granted")
+            if (!Terminal.isInitialized() && verifyGpsEnabled()) {
+                initialize()
+            }
         }
     }
 
@@ -124,17 +130,31 @@ class MainActivity : AppCompatActivity(), NavigationListener {
             )
         }
 
+        Log.i(TAG, "Terminal initialized, loading locations...")
         loadLocations()
+    }
+
+    companion object {
+        private const val TAG = "TapToPay"
     }
 
     private val mutableListState = MutableStateFlow(LocationListState())
 
     private val locationCallback = object : LocationListCallback {
         override fun onFailure(e: TerminalException) {
+            Log.e(TAG, "listLocations failed: ${e.message}", e)
             e.printStackTrace()
+            runOnUiThread {
+                Toast.makeText(
+                    this@MainActivity,
+                    "获取 Locations 失败: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
         }
 
         override fun onSuccess(locations: List<Location>, hasMore: Boolean) {
+            Log.i(TAG, "listLocations success: ${locations.size} locations, hasMore=$hasMore")
             mutableListState.value = mutableListState.value.let {
                 it.copy(
                     locations = it.locations + locations,
@@ -170,7 +190,15 @@ class MainActivity : AppCompatActivity(), NavigationListener {
                             createPaymentIntentCallback
                         )
                     } else {
-                        println("Request not successful: ${response.body()}")
+                        val errorBody = response.errorBody()?.string() ?: "unknown"
+                        Log.e(TAG, "createPaymentIntent failed: code=${response.code()}, body=$errorBody")
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "创建支付失败: ${response.code()} - $errorBody",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     }
                 }
 
@@ -178,7 +206,14 @@ class MainActivity : AppCompatActivity(), NavigationListener {
                     call: Call<PaymentIntentCreationResponse>,
                     t: Throwable
                 ) {
-                    t.printStackTrace()
+                    Log.e(TAG, "createPaymentIntent network error", t)
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "网络错误: ${t.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }
         )
@@ -241,20 +276,36 @@ class MainActivity : AppCompatActivity(), NavigationListener {
     }
 
     private fun connectReader(){
+        val locations = mutableListState.value.locations
+        if (locations.isEmpty()) {
+            Log.w(TAG, "connectReader called but locations is empty, retrying loadLocations...")
+            Toast.makeText(
+                this,
+                "Locations 未加载，正在重试...",
+                Toast.LENGTH_SHORT
+            ).show()
+            loadLocations()
+            return
+        }
+
         val config = DiscoveryConfiguration(
             timeout = 0,
             discoveryMethod = DiscoveryMethod.LOCAL_MOBILE,
             isSimulated = false,
-            location = mutableListState.value.locations[0].id
+            location = locations[0].id
         )
 
         Terminal.getInstance().discoverReaders(config, discoveryListener = object :
             DiscoveryListener {
             override fun onUpdateDiscoveredReaders(readers: List<Reader>) {
-                readers.filter { it.networkStatus != Reader.NetworkStatus.OFFLINE }
-                var reader = readers[0]
+                val onlineReaders = readers.filter { it.networkStatus != Reader.NetworkStatus.OFFLINE }
+                if (onlineReaders.isEmpty()) {
+                    Log.w(TAG, "No online readers discovered")
+                    return
+                }
+                val reader = onlineReaders[0]
 
-                val config = ConnectionConfiguration.LocalMobileConnectionConfiguration("${mutableListState.value.locations[0].id}")
+                val config = ConnectionConfiguration.LocalMobileConnectionConfiguration("${locations[0].id}")
 
                 Terminal.getInstance().connectLocalMobileReader(
                     reader,
@@ -270,9 +321,9 @@ class MainActivity : AppCompatActivity(), NavigationListener {
                                 val manager: FragmentManager = supportFragmentManager
                                 val fragment: Fragment? = manager.findFragmentByTag(ConnectReaderFragment.TAG)
 
-                                if(reader.id !== null && mutableListState.value.locations[0].displayName !== null){
+                                if(reader.id !== null && locations[0].displayName !== null){
                                     (fragment as ConnectReaderFragment).updateReaderId(
-                                        mutableListState.value.locations[0].displayName!!, reader.id!!
+                                        locations[0].displayName!!, reader.id!!
                                     )
                                 }
                             }

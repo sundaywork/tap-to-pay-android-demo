@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.Toast
 import com.example.taptopayandroid.NavigationListener
 import com.example.taptopayandroid.R
 
@@ -28,8 +29,19 @@ class PaymentDetails : Fragment() {
         var priceInput = view?.findViewById(R.id.price_input) as EditText
 
         btnCollectPayment.setOnClickListener {
-            var amount = priceInput.text.toString()
-            (activity as? NavigationListener)?.onCollectPayment(amount.toLong(), "usd",
+            val input = priceInput.text.toString().trim()
+            if (input.isEmpty()) {
+                Toast.makeText(context, "请输入金额", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val amountDollars = input.toLongOrNull()
+            if (amountDollars == null || amountDollars <= 0) {
+                Toast.makeText(context, "请输入有效金额", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            // Stripe 金额单位为分，$10 NZD = 1000 cents
+            val amountCents = amountDollars * 100
+            (activity as? NavigationListener)?.onCollectPayment(amountCents, "nzd",
                 skipTipping = true,
                 extendedAuth = false,
                 incrementalAuth = false
