@@ -19,6 +19,8 @@ import com.example.taptopayandroid.fragments.PaymentDetails
 import com.stripe.stripeterminal.Terminal
 import com.stripe.stripeterminal.external.callable.*
 import com.stripe.stripeterminal.external.models.*
+import com.stripe.stripeterminal.external.models.ConnectionConfiguration.InternetConnectionConfiguration
+import com.stripe.stripeterminal.external.models.DiscoveryConfiguration.InternetDiscoveryConfiguration
 import com.stripe.stripeterminal.log.LogLevel
 import kotlinx.coroutines.flow.MutableStateFlow
 import retrofit2.Call
@@ -26,7 +28,7 @@ import retrofit2.Response
 
 var SKIP_TIPPING: Boolean = true
 
-class MainActivity : AppCompatActivity(), NavigationListener {
+class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderListener {
     // Register the permissions callback to handles the response to the system permissions dialog.
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -118,9 +120,9 @@ class MainActivity : AppCompatActivity(), NavigationListener {
     private fun initialize() {
         // Initialize the Terminal as soon as possible
         try {
-            Terminal.initTerminal(
+            Terminal.init(
                 applicationContext, LogLevel.VERBOSE, TokenProvider(),
-                TerminalEventListener()
+                TerminalEventListener(), null
             )
         } catch (e: TerminalException) {
             throw RuntimeException(
@@ -224,25 +226,16 @@ class MainActivity : AppCompatActivity(), NavigationListener {
             override fun onSuccess(paymentIntent: PaymentIntent) {
                 val skipTipping = SKIP_TIPPING
 
-                val collectConfig = CollectConfiguration.Builder()
+                val collectConfig = CollectPaymentIntentConfiguration.Builder()
                     .skipTipping(skipTipping)
                     .build()
 
-                Terminal.getInstance().collectPaymentMethod(
-                    paymentIntent, collectPaymentMethodCallback, collectConfig
+                Terminal.getInstance().processPaymentIntent(
+                    paymentIntent,
+                    collectConfig,
+                    ConfirmPaymentIntentConfiguration.Builder().build(),
+                    processPaymentCallback
                 )
-            }
-
-            override fun onFailure(e: TerminalException) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    private val collectPaymentMethodCallback by lazy {
-        object : PaymentIntentCallback {
-            override fun onSuccess(paymentIntent: PaymentIntent) {
-                Terminal.getInstance().processPayment(paymentIntent, processPaymentCallback)
             }
 
             override fun onFailure(e: TerminalException) {
@@ -254,9 +247,9 @@ class MainActivity : AppCompatActivity(), NavigationListener {
     private val processPaymentCallback by lazy {
         object : PaymentIntentCallback {
             override fun onSuccess(paymentIntent: PaymentIntent) {
-                ApiClient.capturePaymentIntent(paymentIntent.id)
-
-                //TODO : Return to previous Screen
+                paymentIntent.id?.let { id ->
+                    ApiClient.capturePaymentIntent(id)
+                }
                 navigateTo(PaymentDetails.TAG, PaymentDetails(), true)
             }
 
@@ -275,6 +268,8 @@ class MainActivity : AppCompatActivity(), NavigationListener {
         )
     }
 
+    private var discoveryCancelable: Cancelable? = null
+
     private fun connectReader(){
         val locations = mutableListState.value.locations
         if (locations.isEmpty()) {
@@ -288,58 +283,83 @@ class MainActivity : AppCompatActivity(), NavigationListener {
             return
         }
 
-        val config = DiscoveryConfiguration(
+        // Internet Reader (S710 等) 发现配置
+        val discoveryConfig = InternetDiscoveryConfiguration(
             timeout = 0,
-            discoveryMethod = DiscoveryMethod.LOCAL_MOBILE,
-            isSimulated = false,
-            location = locations[0].id
+            location = locations[0].id,
+            isSimulated = false
         )
 
-        Terminal.getInstance().discoverReaders(config, discoveryListener = object :
-            DiscoveryListener {
-            override fun onUpdateDiscoveredReaders(readers: List<Reader>) {
-                val onlineReaders = readers.filter { it.networkStatus != Reader.NetworkStatus.OFFLINE }
-                if (onlineReaders.isEmpty()) {
-                    Log.w(TAG, "No online readers discovered")
-                    return
-                }
-                val reader = onlineReaders[0]
-
-                val config = ConnectionConfiguration.LocalMobileConnectionConfiguration("${locations[0].id}")
-
-                Terminal.getInstance().connectLocalMobileReader(
-                    reader,
-                    config,
-                    object: ReaderCallback {
+        discoveryCancelable = Terminal.getInstance().discoverReaders(
+            discoveryConfig,
+            object : DiscoveryListener {
+                override fun onUpdateDiscoveredReaders(readers: List<Reader>) {
+                    val onlineReaders = readers.filter { it.networkStatus != Reader.NetworkStatus.OFFLINE }
+                    if (onlineReaders.isEmpty()) {
+                        Log.w(TAG, "No online readers discovered")
+                        return
+                    }
+                    val reader = onlineReaders[0]
+                    discoveryCancelable?.cancel(object : Callback {
+                        override fun onSuccess() {}
                         override fun onFailure(e: TerminalException) {
-                            e.printStackTrace()
+                            Log.e(TAG, "Cancel discovery failed", e)
                         }
+                    })
 
-                        override fun onSuccess(reader: Reader) {
-                            // Update the UI with the location name and terminal ID
-                            runOnUiThread {
-                                val manager: FragmentManager = supportFragmentManager
-                                val fragment: Fragment? = manager.findFragmentByTag(ConnectReaderFragment.TAG)
+                    val connectionConfig = InternetConnectionConfiguration(
+                        internetReaderListener = this@MainActivity,
+                        failIfInUse = false
+                    )
 
-                                if(reader.id !== null && locations[0].displayName !== null){
-                                    (fragment as ConnectReaderFragment).updateReaderId(
-                                        locations[0].displayName!!, reader.id!!
-                                    )
+                    Terminal.getInstance().connectReader(
+                        reader,
+                        connectionConfig,
+                        object : ReaderCallback {
+                            override fun onFailure(e: TerminalException) {
+                                Log.e(TAG, "connectReader failed", e)
+                                runOnUiThread {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "连接读卡器失败: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+
+                            override fun onSuccess(connectedReader: Reader) {
+                                runOnUiThread {
+                                    val manager: FragmentManager = supportFragmentManager
+                                    val fragment: Fragment? = manager.findFragmentByTag(ConnectReaderFragment.TAG)
+                                    if (connectedReader.id != null && locations[0].displayName != null) {
+                                        (fragment as? ConnectReaderFragment)?.updateReaderId(
+                                            locations[0].displayName!!,
+                                            connectedReader.id!!
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                )
-            }
-        }, object : Callback {
-            override fun onSuccess() {
-                println("Finished discovering readers")
-            }
+                    )
+                }
+            },
+            object : Callback {
+                override fun onSuccess() {
+                    Log.i(TAG, "Discovery finished")
+                }
 
-            override fun onFailure(e: TerminalException) {
-                e.printStackTrace()
+                override fun onFailure(e: TerminalException) {
+                    Log.e(TAG, "Discovery failed", e)
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "发现读卡器失败: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             }
-        })
+        )
     }
 
     // Navigate to Fragment
@@ -387,5 +407,12 @@ class MainActivity : AppCompatActivity(), NavigationListener {
 
     override fun onCancel(){
         navigateTo(ConnectReaderFragment.TAG, ConnectReaderFragment(), true)
+    }
+
+    override fun onDisconnect(reason: DisconnectReason) {
+        Log.i(TAG, "Reader disconnected: $reason")
+        runOnUiThread {
+            Toast.makeText(this, "读卡器已断开: $reason", Toast.LENGTH_SHORT).show()
+        }
     }
 }
