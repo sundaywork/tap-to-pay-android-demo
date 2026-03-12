@@ -28,8 +28,18 @@ android {
         viewBinding true
     }
 
+    signingConfigs {
+        // 测试用：使用 debug 密钥签名 release 包，便于安装
+        release {
+            storeFile file("${System.getProperty('user.home')}/.android/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -58,6 +68,14 @@ ext {
     okhttp_version = '4.10.0'
     retrofit_version = '2.9.0'
     stripeTerminalVersion = "2.17.1"
+}
+
+configurations.all {
+    resolutionStrategy {
+        // stripeterminal-taptopay 依赖的 recyclerview 1.4.0 要求 compileSdk 35，
+        // 强制使用兼容 compileSdk 34 的版本
+        force "androidx.recyclerview:recyclerview:1.3.2"
+    }
 }
 
 dependencies {
@@ -90,6 +108,8 @@ dependencies {
 
     // Stripe Terminal - 完整版支持 Internet Reader (S710) 和 Tap to Pay
     implementation "com.stripe:stripeterminal:5.3.0"
+    // Tap to Pay 需要单独引入 taptopay 模块
+    implementation "com.stripe:stripeterminal-taptopay:5.3.0"
 
     // Leak canary
     debugImplementation "com.squareup.leakcanary:leakcanary-android:2.9.1"

@@ -1,6 +1,7 @@
 package com.example.taptopayandroid
 
 import android.Manifest
+import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.content.pm.PackageManager
@@ -436,11 +437,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                                     supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                                         (it as? ConnectReaderFragment)?.resetConnectButton()
                                     }
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "连接手机刷卡失败: ${e.message}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                                    showErrorDialog("连接手机刷卡失败", e.message ?: "未知错误")
                                 }
                             }
 
@@ -471,15 +468,19 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                         supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                             (it as? ConnectReaderFragment)?.resetConnectButton()
                         }
-                        Toast.makeText(
-                            this@MainActivity,
-                            "发现手机刷卡失败: ${e.message}",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        showErrorDialog("发现手机刷卡失败", e.message ?: "未知错误")
                     }
                 }
             }
         )
+    }
+
+    private fun showErrorDialog(title: String, message: String) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
     }
 
     // Navigate to Fragment
