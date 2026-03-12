@@ -21,6 +21,19 @@
         app:layout_constraintVertical_bias="0.05" />
 
     <TextView
+        android:id="@+id/tap_to_pay_connecting_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="48dp"
+        android:text="正在连接手机刷卡，请稍候..."
+        android:textColor="#87909f"
+        android:textSize="14sp"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
         android:id="@+id/price_input_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -38,7 +51,7 @@
         android:id="@+id/price_input"
         android:layout_width="177dp"
         android:layout_height="50dp"
-        android:inputType="number"
+        android:inputType="numberDecimal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.162"
@@ -64,13 +77,11 @@
         android:id="@+id/cancel_button"
         android:layout_width="wrap_content"
         android:layout_height="50dp"
+        android:layout_marginTop="12dp"
         android:backgroundTint="#df1b41"
         android:text="Cancel"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.764"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.305" />
+        app:layout_constraintTop_toBottomOf="@id/collect_payment_button" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

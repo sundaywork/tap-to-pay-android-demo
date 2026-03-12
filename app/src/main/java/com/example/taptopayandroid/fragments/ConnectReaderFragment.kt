@@ -44,7 +44,9 @@ class ConnectReaderFragment : Fragment() {
         btnConnectReader!!.setOnClickListener {
             btnConnectReader!!.text = "Connecting..."
             val useInternetReader = (view?.findViewById<RadioGroup>(R.id.reader_type_group)?.checkedRadioButtonId == R.id.radio_internet_reader)
-            (activity as? NavigationListener)?.onConnectReader(useInternetReader)
+            // Tap to Pay: 立即进入金额输入页，后台连接
+            val navigateImmediately = !useInternetReader
+            (activity as? NavigationListener)?.onConnectReader(useInternetReader, navigateImmediately)
         }
 
         editPaymentDetailsButton!!.setOnClickListener{

@@ -17,6 +17,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import com.example.taptopayandroid.fragments.ConnectReaderFragment
 import com.example.taptopayandroid.fragments.PaymentDetails
+import com.example.taptopayandroid.fragments.currentReaderDetails
 import com.stripe.stripeterminal.Terminal
 import com.stripe.stripeterminal.external.callable.*
 import com.stripe.stripeterminal.external.models.*
@@ -437,19 +438,19 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                                     supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                                         (it as? ConnectReaderFragment)?.resetConnectButton()
                                     }
+                                    (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onConnectionFailed(e.message ?: "未知错误")
                                     showErrorDialog("连接手机刷卡失败", e.message ?: "未知错误")
                                 }
                             }
 
                             override fun onSuccess(connectedReader: Reader) {
                                 runOnUiThread {
-                                    val manager: FragmentManager = supportFragmentManager
-                                    val fragment: Fragment? = manager.findFragmentByTag(ConnectReaderFragment.TAG)
-                                    if (connectedReader.id != null && location.displayName != null) {
-                                        (fragment as? ConnectReaderFragment)?.updateReaderId(
-                                            location.displayName!!,
-                                            connectedReader.id!!
-                                        )
+                                    currentReaderDetails = if (connectedReader.id != null && location.displayName != null) {
+                                        "${location.displayName} : ${connectedReader.id}"
+                                    } else null
+                                    (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onReaderConnected()
+                                    currentReaderDetails?.split(" : ", limit = 2)?.takeIf { it.size == 2 }?.let { p ->
+                                        (supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG) as? ConnectReaderFragment)?.updateReaderId(p[0], p[1])
                                     }
                                 }
                             }
@@ -468,6 +469,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                         supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                             (it as? ConnectReaderFragment)?.resetConnectButton()
                         }
+                        (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onConnectionFailed(e.message ?: "未知错误")
                         showErrorDialog("发现手机刷卡失败", e.message ?: "未知错误")
                     }
                 }
@@ -507,8 +509,16 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
             .commitAllowingStateLoss()
     }
 
-    override fun onConnectReader(useInternetReader: Boolean) {
-        connectReader(useInternetReader)
+    override fun onConnectReader(useInternetReader: Boolean, navigateToPaymentDetailsImmediately: Boolean) {
+        if (useInternetReader || !navigateToPaymentDetailsImmediately) {
+            connectReader(useInternetReader)
+        } else {
+            // Tap to Pay: 立即进入金额输入页，后台连接
+            val args = Bundle().apply { putBoolean(PaymentDetails.ARG_TAP_TO_PAY_PENDING, true) }
+            val fragment = PaymentDetails().apply { arguments = args }
+            navigateTo(PaymentDetails.TAG, fragment, true)
+            connectReader(false)
+        }
     }
 
     override fun onCollectPayment(
