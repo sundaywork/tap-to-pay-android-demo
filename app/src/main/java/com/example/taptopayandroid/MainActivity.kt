@@ -154,7 +154,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
             runOnUiThread {
                 Toast.makeText(
                     this@MainActivity,
-                    "获取 Locations 失败: ${e.message}",
+                    "Failed to load locations: ${e.message}",
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -202,7 +202,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                         runOnUiThread {
                             Toast.makeText(
                                 this@MainActivity,
-                                "创建支付失败: ${response.code()} - $errorBody",
+                                "Create payment failed: ${response.code()} - $errorBody",
                                 Toast.LENGTH_LONG
                             ).show()
                         }
@@ -217,7 +217,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                     runOnUiThread {
                         Toast.makeText(
                             this@MainActivity,
-                            "网络错误: ${t.message}",
+                            "Network error: ${t.message}",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -259,7 +259,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                 runOnUiThread {
                     Toast.makeText(
                         this@MainActivity,
-                        "支付成功",
+                        "Payment successful",
                         Toast.LENGTH_LONG
                     ).show()
                     navigateTo(PaymentDetails.TAG, PaymentDetails(), true)
@@ -271,7 +271,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                 runOnUiThread {
                     Toast.makeText(
                         this@MainActivity,
-                        "支付失败: ${e.message}",
+                        "Payment failed: ${e.message}",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -296,7 +296,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
             Log.w(TAG, "connectReader called but locations is empty, retrying loadLocations...")
             Toast.makeText(
                 this,
-                "Locations 未加载，正在重试...",
+                "Locations not loaded, retrying...",
                 Toast.LENGTH_SHORT
             ).show()
             loadLocations()
@@ -352,7 +352,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                                     }
                                     Toast.makeText(
                                         this@MainActivity,
-                                        "连接读卡器失败: ${e.message}",
+                                        "Connect reader failed: ${e.message}",
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }
@@ -387,7 +387,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                         }
                         Toast.makeText(
                             this@MainActivity,
-                            "发现读卡器失败: ${e.message}",
+                            "Discover reader failed: ${e.message}",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -418,7 +418,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                             supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                                 (it as? ConnectReaderFragment)?.resetConnectButton()
                             }
-                            Toast.makeText(this@MainActivity, "Location ID 无效", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "Invalid Location ID", Toast.LENGTH_SHORT).show()
                         }
                         return
                     }
@@ -438,8 +438,8 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                                     supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                                         (it as? ConnectReaderFragment)?.resetConnectButton()
                                     }
-                                    (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onConnectionFailed(e.message ?: "未知错误")
-                                    showErrorDialog("连接手机刷卡失败", e.message ?: "未知错误")
+                                    (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onConnectionFailed(e.message ?: "Unknown error")
+                                    showErrorDialog("Connect Tap to Pay failed", e.message ?: "Unknown error")
                                 }
                             }
 
@@ -469,8 +469,8 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                         supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                             (it as? ConnectReaderFragment)?.resetConnectButton()
                         }
-                        (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onConnectionFailed(e.message ?: "未知错误")
-                        showErrorDialog("发现手机刷卡失败", e.message ?: "未知错误")
+                        (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onConnectionFailed(e.message ?: "Unknown error")
+                        showErrorDialog("Discover Tap to Pay failed", e.message ?: "Unknown error")
                     }
                 }
             }
@@ -543,7 +543,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
     override fun onDisconnect(reason: DisconnectReason) {
         Log.i(TAG, "Reader disconnected: $reason")
         runOnUiThread {
-            Toast.makeText(this, "读卡器已断开: $reason", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Reader disconnected: $reason", Toast.LENGTH_SHORT).show()
         }
     }
 }
