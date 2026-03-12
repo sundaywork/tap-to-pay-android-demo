@@ -18,16 +18,39 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <RadioGroup
+        android:id="@+id/reader_type_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:orientation="vertical"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textView">
+
+        <RadioButton
+            android:id="@+id/radio_tap_to_pay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="手机刷卡 (Tap to Pay)" />
+
+        <RadioButton
+            android:id="@+id/radio_internet_reader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="物理读卡器 (S710)" />
+    </RadioGroup>
+
     <TextView
         android:id="@+id/reader_connected_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="16dp"
         android:text="Reader connected:"
         android:textColor="#414552"
         android:textSize="17sp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/textView" />
+        app:layout_constraintTop_toBottomOf="@id/reader_type_group" />
 
     <TextView
         android:id="@+id/reader_id"

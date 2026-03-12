@@ -20,7 +20,10 @@ import com.stripe.stripeterminal.Terminal
 import com.stripe.stripeterminal.external.callable.*
 import com.stripe.stripeterminal.external.models.*
 import com.stripe.stripeterminal.external.models.ConnectionConfiguration.InternetConnectionConfiguration
+import com.stripe.stripeterminal.external.models.ConnectionConfiguration.TapToPayConnectionConfiguration
 import com.stripe.stripeterminal.external.models.DiscoveryConfiguration.InternetDiscoveryConfiguration
+import com.stripe.stripeterminal.external.models.DiscoveryConfiguration.TapToPayDiscoveryConfiguration
+import com.stripe.stripeterminal.external.models.TapUseCase
 import com.stripe.stripeterminal.log.LogLevel
 import kotlinx.coroutines.flow.MutableStateFlow
 import retrofit2.Call
@@ -247,14 +250,29 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
     private val processPaymentCallback by lazy {
         object : PaymentIntentCallback {
             override fun onSuccess(paymentIntent: PaymentIntent) {
+                Log.i(TAG, "Payment successful: ${paymentIntent.id}")
                 paymentIntent.id?.let { id ->
                     ApiClient.capturePaymentIntent(id)
                 }
-                navigateTo(PaymentDetails.TAG, PaymentDetails(), true)
+                runOnUiThread {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "支付成功",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    navigateTo(PaymentDetails.TAG, PaymentDetails(), true)
+                }
             }
 
             override fun onFailure(e: TerminalException) {
-                e.printStackTrace()
+                Log.e(TAG, "Payment failed", e)
+                runOnUiThread {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "支付失败: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
     }
@@ -270,7 +288,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
 
     private var discoveryCancelable: Cancelable? = null
 
-    private fun connectReader(){
+    private fun connectReader(useInternetReader: Boolean) {
         val locations = mutableListState.value.locations
         if (locations.isEmpty()) {
             Log.w(TAG, "connectReader called but locations is empty, retrying loadLocations...")
@@ -283,10 +301,18 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
             return
         }
 
-        // Internet Reader (S710 等) 发现配置
+        val location = locations[0]
+        if (useInternetReader) {
+            connectReaderInternet(location)
+        } else {
+            connectReaderTapToPay(location)
+        }
+    }
+
+    private fun connectReaderInternet(location: Location) {
         val discoveryConfig = InternetDiscoveryConfiguration(
             timeout = 0,
-            location = locations[0].id,
+            location = location.id,
             isSimulated = false
         )
 
@@ -319,6 +345,9 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                             override fun onFailure(e: TerminalException) {
                                 Log.e(TAG, "connectReader failed", e)
                                 runOnUiThread {
+                                    supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
+                                        (it as? ConnectReaderFragment)?.resetConnectButton()
+                                    }
                                     Toast.makeText(
                                         this@MainActivity,
                                         "连接读卡器失败: ${e.message}",
@@ -327,13 +356,13 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                                 }
                             }
 
-                            override fun onSuccess(connectedReader: Reader) {
+                                override fun onSuccess(connectedReader: Reader) {
                                 runOnUiThread {
                                     val manager: FragmentManager = supportFragmentManager
                                     val fragment: Fragment? = manager.findFragmentByTag(ConnectReaderFragment.TAG)
-                                    if (connectedReader.id != null && locations[0].displayName != null) {
+                                    if (connectedReader.id != null && location.displayName != null) {
                                         (fragment as? ConnectReaderFragment)?.updateReaderId(
-                                            locations[0].displayName!!,
+                                            location.displayName!!,
                                             connectedReader.id!!
                                         )
                                     }
@@ -351,9 +380,100 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                 override fun onFailure(e: TerminalException) {
                     Log.e(TAG, "Discovery failed", e)
                     runOnUiThread {
+                        supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
+                            (it as? ConnectReaderFragment)?.resetConnectButton()
+                        }
                         Toast.makeText(
                             this@MainActivity,
                             "发现读卡器失败: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        )
+    }
+
+    private fun connectReaderTapToPay(location: Location) {
+        val discoveryConfig = TapToPayDiscoveryConfiguration(isSimulated = false)
+
+        discoveryCancelable = Terminal.getInstance().discoverReaders(
+            discoveryConfig,
+            object : DiscoveryListener {
+                override fun onUpdateDiscoveredReaders(readers: List<Reader>) {
+                    if (readers.isEmpty()) return
+                    val reader = readers[0]
+                    discoveryCancelable?.cancel(object : Callback {
+                        override fun onSuccess() {}
+                        override fun onFailure(e: TerminalException) {
+                            Log.e(TAG, "Cancel discovery failed", e)
+                        }
+                    })
+
+                    val locationId = location.id
+                    if (locationId == null) {
+                        runOnUiThread {
+                            supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
+                                (it as? ConnectReaderFragment)?.resetConnectButton()
+                            }
+                            Toast.makeText(this@MainActivity, "Location ID 无效", Toast.LENGTH_SHORT).show()
+                        }
+                        return
+                    }
+                    val connectionConfig = TapToPayConnectionConfiguration(
+                        useCase = TapUseCase.Pay(locationId),
+                        autoReconnectOnUnexpectedDisconnect = true,
+                        tapToPayReaderListener = null
+                    )
+
+                    Terminal.getInstance().connectReader(
+                        reader,
+                        connectionConfig,
+                        object : ReaderCallback {
+                            override fun onFailure(e: TerminalException) {
+                                Log.e(TAG, "connectReader (Tap to Pay) failed", e)
+                                runOnUiThread {
+                                    supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
+                                        (it as? ConnectReaderFragment)?.resetConnectButton()
+                                    }
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "连接手机刷卡失败: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+
+                            override fun onSuccess(connectedReader: Reader) {
+                                runOnUiThread {
+                                    val manager: FragmentManager = supportFragmentManager
+                                    val fragment: Fragment? = manager.findFragmentByTag(ConnectReaderFragment.TAG)
+                                    if (connectedReader.id != null && location.displayName != null) {
+                                        (fragment as? ConnectReaderFragment)?.updateReaderId(
+                                            location.displayName!!,
+                                            connectedReader.id!!
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+            },
+            object : Callback {
+                override fun onSuccess() {
+                    Log.i(TAG, "Tap to Pay discovery finished")
+                }
+
+                override fun onFailure(e: TerminalException) {
+                    Log.e(TAG, "Tap to Pay discovery failed", e)
+                    runOnUiThread {
+                        supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
+                            (it as? ConnectReaderFragment)?.resetConnectButton()
+                        }
+                        Toast.makeText(
+                            this@MainActivity,
+                            "发现手机刷卡失败: ${e.message}",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -386,8 +506,8 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
             .commitAllowingStateLoss()
     }
 
-    override fun onConnectReader(){
-        connectReader()
+    override fun onConnectReader(useInternetReader: Boolean) {
+        connectReader(useInternetReader)
     }
 
     override fun onCollectPayment(

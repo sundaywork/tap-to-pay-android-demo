@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.RadioGroup
 import android.widget.TextView
 import com.example.taptopayandroid.NavigationListener
 import com.example.taptopayandroid.R
@@ -42,7 +43,8 @@ class ConnectReaderFragment : Fragment() {
 
         btnConnectReader!!.setOnClickListener {
             btnConnectReader!!.text = "Connecting..."
-            (activity as? NavigationListener)?.onConnectReader()
+            val useInternetReader = (view?.findViewById<RadioGroup>(R.id.reader_type_group)?.checkedRadioButtonId == R.id.radio_internet_reader)
+            (activity as? NavigationListener)?.onConnectReader(useInternetReader)
         }
 
         editPaymentDetailsButton!!.setOnClickListener{
@@ -50,6 +52,10 @@ class ConnectReaderFragment : Fragment() {
         }
 
         return view
+    }
+
+    fun resetConnectButton() {
+        btnConnectReader?.text = "Connect reader"
     }
 
     fun updateReaderId(location: String, reader_id: String){
