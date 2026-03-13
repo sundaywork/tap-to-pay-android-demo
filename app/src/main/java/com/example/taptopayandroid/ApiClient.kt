@@ -1,6 +1,9 @@
 package com.example.taptopayandroid
 
 import com.example.taptopayandroid.BuildConfig
+import com.example.taptopayandroid.CancelPaymentIntentRequest
+import com.example.taptopayandroid.CapturePaymentIntentRequest
+import com.example.taptopayandroid.CreatePaymentIntentRequest
 import com.example.taptopayandroid.PaymentIntentCreationResponse
 import android.util.Log
 import com.stripe.stripeterminal.external.models.ConnectionTokenException
@@ -16,9 +19,15 @@ import java.io.IOException
 object ApiClient {
 
     private val client = OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .addHeader("x-stripe-api-key", BuildConfig.STRIPE_API_KEY)
+                .build()
+            chain.proceed(request)
+        }
         .build()
     private val retrofit: Retrofit = Retrofit.Builder()
-        .baseUrl(BuildConfig.EXAMPLE_BACKEND_URL)
+        .baseUrl(BuildConfig.STRIPE_BACKEND_URL)
         .client(client)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
@@ -54,14 +63,14 @@ object ApiClient {
     }
 
     internal fun capturePaymentIntent(id: String) {
-        service.capturePaymentIntent(id).execute()
+        service.capturePaymentIntent(CapturePaymentIntentRequest(payment_intent_id = id)).execute()
     }
 
     internal fun cancelPaymentIntent(
         id: String,
         callback: Callback<Void>
     ) {
-        service.cancelPaymentIntent(id).enqueue(callback)
+        service.cancelPaymentIntent(CancelPaymentIntentRequest(payment_intent_id = id)).enqueue(callback)
     }
 
     /**
@@ -76,18 +85,18 @@ object ApiClient {
         incrementalAuth: Boolean,
         callback: Callback<PaymentIntentCreationResponse>
     ) {
-        val createPaymentIntentParams = buildMap<String, String> {
-            put("amount", amount.toString())
-            put("currency", currency)
-
-            if (extendedAuth) {
-                put("payment_method_options[card_present[request_extended_authorization]]", "true")
-            }
-            if (incrementalAuth) {
-                put("payment_method_options[card_present[request_incremental_authorization_support]]", "true")
-            }
+        val paymentMethodOptions = mutableMapOf<String, Any>()
+        if (extendedAuth || incrementalAuth) {
+            val cardPresent = mutableMapOf<String, Any>()
+            if (extendedAuth) cardPresent["request_extended_authorization"] = true
+            if (incrementalAuth) cardPresent["request_incremental_authorization_support"] = true
+            paymentMethodOptions["card_present"] = cardPresent
         }
-
-        service.createPaymentIntent(createPaymentIntentParams).enqueue(callback)
+        val request = CreatePaymentIntentRequest(
+            amount = amount,
+            currency = currency,
+            payment_method_options = paymentMethodOptions.takeIf { it.isNotEmpty() }
+        )
+        service.createPaymentIntent(request).enqueue(callback)
     }
 }

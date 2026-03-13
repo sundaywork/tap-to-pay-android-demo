@@ -9,7 +9,7 @@ If you want to learn how to add Tap to Pay to an Android app, check out the [blo
 
 You can clone this repo and run it using Android Studio. Using the Stripe Terminal SDK requires a back-end server to run, and it needs to be available with a public URL.
 
-In the `graddle.properties` file, you will find the variable `EXAMPLE_BACKEND_URL` where you need to indicate the URL to an app hosted and available publicly. If you want to get started quickly, you can clone [this example back-end](https://github.com/stripe/example-terminal-backend), update it to use your Stripe publishable and secret keys, host it on Render or any service that will give you a public URL, and replace the `EXAMPLE_BACKEND_URL` with it.
+In the `graddle.properties` file, you will find the variable `STRIPE_BACKEND_URL` where you need to indicate the URL to an app hosted and available publicly. If you want to get started quickly, you can clone [this example back-end](https://github.com/stripe/example-terminal-backend), update it to use your Stripe publishable and secret keys, host it on Render or any service that will give you a public URL, and replace the `STRIPE_BACKEND_URL` with it.
 
 ## Create a location
 

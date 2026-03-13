@@ -21,8 +21,11 @@ ext {
     latestSdkVersion = 34
 }
 
-if (!project.hasProperty("EXAMPLE_BACKEND_URL")) {
-    throw new IllegalArgumentException("You must specify EXAMPLE_BACKEND_URL in gradle.properies")
+if (!project.hasProperty("STRIPE_BACKEND_URL")) {
+    throw new IllegalArgumentException("You must specify STRIPE_BACKEND_URL in gradle.properties")
+}
+if (!project.hasProperty("STRIPE_API_KEY")) {
+    throw new IllegalArgumentException("You must specify STRIPE_API_KEY in gradle.properties")
 }
 
 allprojects {

@@ -40,7 +40,7 @@ defaultConfig {
 **gradle.properties** 添加：
 
 ```properties
-EXAMPLE_BACKEND_URL=http://coredev3.aiic.nz:4567/
+STRIPE_BACKEND_URL=https://pay.aiic.nz/api/stripe
 ```
 
 **app/build.gradle.kts** 的 defaultConfig 中添加：
@@ -48,8 +48,8 @@ EXAMPLE_BACKEND_URL=http://coredev3.aiic.nz:4567/
 ```kotlin
 buildConfigField(
     "String",
-    "EXAMPLE_BACKEND_URL",
-    "\"${project.findProperty("EXAMPLE_BACKEND_URL")?.toString()?.trim()?.trim('\"') ?: ""}\""
+    "STRIPE_BACKEND_URL",
+    "\"${project.findProperty("STRIPE_BACKEND_URL")?.toString()?.trim()?.trim('\"') ?: ""}\""
 )
 ```
 

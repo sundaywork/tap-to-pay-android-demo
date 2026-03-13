@@ -19,7 +19,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         targetSdkVersion latestSdkVersion
-        buildConfigField "String", "EXAMPLE_BACKEND_URL", "\"${project.getProperty("EXAMPLE_BACKEND_URL").replaceAll("^[\"\\s]*|[\"\\s]*\$", "")}\""
+        buildConfigField "String", "STRIPE_BACKEND_URL", "\"${project.getProperty("STRIPE_BACKEND_URL").replaceAll("^[\"\\s]*|[\"\\s]*\$", "").replaceAll("/?\$", "/")}\""
+        buildConfigField "String", "STRIPE_API_KEY", "\"${project.getProperty("STRIPE_API_KEY").replaceAll("^[\"\\s]*|[\"\\s]*\$", "")}\""
     }
 
     buildFeatures {
