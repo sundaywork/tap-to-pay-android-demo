@@ -7,8 +7,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
+import com.example.taptopayandroid.ApiClient
 import com.example.taptopayandroid.NavigationListener
 import com.example.taptopayandroid.R
 
@@ -32,6 +34,13 @@ class ConnectReaderFragment : Fragment() {
         btnConnectReader = view?.findViewById(R.id.connect_reader_button) as Button
         editPaymentDetailsButton = view?.findViewById(R.id.edit_payment_details_button) as Button
 
+        // Initialize radio button based on default env
+        if (ApiClient.isTestEnvironment) {
+            view?.findViewById<RadioButton>(R.id.radio_env_test)?.isChecked = true
+        } else {
+            view?.findViewById<RadioButton>(R.id.radio_env_prod)?.isChecked = true
+        }
+
         // If the user is getting to this view after having already connected a reader
         if(currentReaderDetails !== null){
             val readerId = view?.findViewById(R.id.reader_id) as TextView
@@ -43,6 +52,10 @@ class ConnectReaderFragment : Fragment() {
 
         btnConnectReader!!.setOnClickListener {
             btnConnectReader!!.text = "Connecting..."
+            
+            val isTestEnv = (view?.findViewById<RadioGroup>(R.id.env_type_group)?.checkedRadioButtonId == R.id.radio_env_test)
+            ApiClient.isTestEnvironment = isTestEnv
+
             val useInternetReader = (view?.findViewById<RadioGroup>(R.id.reader_type_group)?.checkedRadioButtonId == R.id.radio_internet_reader)
             // Tap to Pay: 立即进入金额输入页，后台连接
             val navigateImmediately = !useInternetReader

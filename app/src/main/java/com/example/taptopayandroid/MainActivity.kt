@@ -291,30 +291,19 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
     private var discoveryCancelable: Cancelable? = null
 
     private fun connectReader(useInternetReader: Boolean) {
-        val locations = mutableListState.value.locations
-        if (locations.isEmpty()) {
-            Log.w(TAG, "connectReader called but locations is empty, retrying loadLocations...")
-            Toast.makeText(
-                this,
-                "Locations not loaded, retrying...",
-                Toast.LENGTH_SHORT
-            ).show()
-            loadLocations()
-            return
-        }
+        val locationId = if (ApiClient.isTestEnvironment) BuildConfig.STRIPE_LOCATION_ID_TEST else BuildConfig.STRIPE_LOCATION_ID_PROD
 
-        val location = locations[0]
         if (useInternetReader) {
-            connectReaderInternet(location)
+            connectReaderInternet(locationId)
         } else {
-            connectReaderTapToPay(location)
+            connectReaderTapToPay(locationId)
         }
     }
 
-    private fun connectReaderInternet(location: Location) {
+    private fun connectReaderInternet(locationId: String) {
         val discoveryConfig = InternetDiscoveryConfiguration(
             timeout = 0,
-            location = location.id,
+            location = locationId,
             isSimulated = false
         )
 
@@ -362,9 +351,10 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                                 runOnUiThread {
                                     val manager: FragmentManager = supportFragmentManager
                                     val fragment: Fragment? = manager.findFragmentByTag(ConnectReaderFragment.TAG)
-                                    if (connectedReader.id != null && location.displayName != null) {
+                                    val displayName = if (ApiClient.isTestEnvironment) "Test Env" else "Prod Env"
+                                    if (connectedReader.id != null) {
                                         (fragment as? ConnectReaderFragment)?.updateReaderId(
-                                            location.displayName!!,
+                                            displayName,
                                             connectedReader.id!!
                                         )
                                     }
@@ -396,7 +386,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
         )
     }
 
-    private fun connectReaderTapToPay(location: Location) {
+    private fun connectReaderTapToPay(locationId: String) {
         val discoveryConfig = TapToPayDiscoveryConfiguration(isSimulated = false)
 
         discoveryCancelable = Terminal.getInstance().discoverReaders(
@@ -412,16 +402,6 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                         }
                     })
 
-                    val locationId = location.id
-                    if (locationId == null) {
-                        runOnUiThread {
-                            supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
-                                (it as? ConnectReaderFragment)?.resetConnectButton()
-                            }
-                            Toast.makeText(this@MainActivity, "Invalid Location ID", Toast.LENGTH_SHORT).show()
-                        }
-                        return
-                    }
                     val connectionConfig = TapToPayConnectionConfiguration(
                         useCase = TapUseCase.Pay(locationId),
                         autoReconnectOnUnexpectedDisconnect = true,
@@ -445,8 +425,9 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
 
                             override fun onSuccess(connectedReader: Reader) {
                                 runOnUiThread {
-                                    currentReaderDetails = if (connectedReader.id != null && location.displayName != null) {
-                                        "${location.displayName} : ${connectedReader.id}"
+                                    val displayName = if (ApiClient.isTestEnvironment) "Test Env" else "Prod Env"
+                                    currentReaderDetails = if (connectedReader.id != null) {
+                                        "$displayName : ${connectedReader.id}"
                                     } else null
                                     (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onReaderConnected()
                                     currentReaderDetails?.split(" : ", limit = 2)?.takeIf { it.size == 2 }?.let { p ->

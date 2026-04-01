@@ -5,9 +5,12 @@ import com.example.taptopayandroid.CapturePaymentIntentRequest
 import com.example.taptopayandroid.ConnectionToken
 import com.example.taptopayandroid.CreatePaymentIntentRequest
 import com.example.taptopayandroid.PaymentIntentCreationResponse
+import com.google.gson.annotations.SerializedName
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.POST
+
+data class ConnectionTokenRequest(@SerializedName("location") val location: String)
 
 /**
  * The `BackendService` interface handles the two simple calls we need to make to our backend.
@@ -18,7 +21,7 @@ interface BackendService {
      * Get a connection token string from the backend
      */
     @POST("connection-token")
-    fun getConnectionToken(): Call<ConnectionToken>
+    fun getConnectionToken(@Body body: ConnectionTokenRequest): Call<ConnectionToken>
 
     /**
      * Capture a specific payment intent on our backend

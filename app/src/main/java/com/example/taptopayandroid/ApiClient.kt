@@ -1,10 +1,5 @@
 package com.example.taptopayandroid
 
-import com.example.taptopayandroid.BuildConfig
-import com.example.taptopayandroid.CancelPaymentIntentRequest
-import com.example.taptopayandroid.CapturePaymentIntentRequest
-import com.example.taptopayandroid.CreatePaymentIntentRequest
-import com.example.taptopayandroid.PaymentIntentCreationResponse
 import android.util.Log
 import com.stripe.stripeterminal.external.models.ConnectionTokenException
 import okhttp3.OkHttpClient
@@ -18,25 +13,41 @@ import java.io.IOException
  */
 object ApiClient {
 
-    private val client = OkHttpClient.Builder()
-        .addInterceptor { chain ->
-            val request = chain.request().newBuilder()
-                .addHeader("x-stripe-api-key", BuildConfig.STRIPE_API_KEY)
-                .build()
-            chain.proceed(request)
+    var isTestEnvironment: Boolean = BuildConfig.STRIPE_ENV_DEFAULT.equals("TEST", ignoreCase = true)
+        set(value) {
+            field = value
+            recreateService()
         }
-        .build()
-    private val retrofit: Retrofit = Retrofit.Builder()
-        .baseUrl(BuildConfig.STRIPE_BACKEND_URL)
-        .client(client)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-    private val service: BackendService = retrofit.create(BackendService::class.java)
+
+    private lateinit var service: BackendService
+
+    init {
+        recreateService()
+    }
+
+    private fun recreateService() {
+        val baseUrl = if (isTestEnvironment) BuildConfig.STRIPE_BACKEND_URL_TEST else BuildConfig.STRIPE_BACKEND_URL_PROD
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .addHeader("x-stripe-api-key", BuildConfig.STRIPE_API_KEY)
+                    .build()
+                chain.proceed(request)
+            }
+            .build()
+        val retrofit: Retrofit = Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        service = retrofit.create(BackendService::class.java)
+    }
 
     @Throws(ConnectionTokenException::class)
     internal fun createConnectionToken(): String {
         try {
-            val result = service.getConnectionToken().execute()
+            val locationId = if (isTestEnvironment) BuildConfig.STRIPE_LOCATION_ID_TEST else BuildConfig.STRIPE_LOCATION_ID_PROD
+            val result = service.getConnectionToken(ConnectionTokenRequest(locationId)).execute()
             if (result.isSuccessful && result.body() != null) {
                 Log.i("TapToPay", "Connection token fetched successfully")
                 return result.body()!!.secret

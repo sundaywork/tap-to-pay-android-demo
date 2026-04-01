@@ -19,7 +19,11 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         targetSdkVersion latestSdkVersion
-        buildConfigField "String", "STRIPE_BACKEND_URL", "\"${project.getProperty("STRIPE_BACKEND_URL").replaceAll("^[\"\\s]*|[\"\\s]*\$", "").replaceAll("/?\$", "/")}\""
+        buildConfigField "String", "STRIPE_ENV_DEFAULT", "\"${project.getProperty("STRIPE_ENV_DEFAULT").replaceAll("^[\"\\s]*|[\"\\s]*\$", "")}\""
+        buildConfigField "String", "STRIPE_BACKEND_URL_TEST", "\"${project.getProperty("STRIPE_BACKEND_URL_TEST").replaceAll("^[\"\\s]*|[\"\\s]*\$", "").replaceAll("/?\$", "/")}\""
+        buildConfigField "String", "STRIPE_BACKEND_URL_PROD", "\"${project.getProperty("STRIPE_BACKEND_URL_PROD").replaceAll("^[\"\\s]*|[\"\\s]*\$", "").replaceAll("/?\$", "/")}\""
+        buildConfigField "String", "STRIPE_LOCATION_ID_TEST", "\"${project.getProperty("STRIPE_LOCATION_ID_TEST").replaceAll("^[\"\\s]*|[\"\\s]*\$", "")}\""
+        buildConfigField "String", "STRIPE_LOCATION_ID_PROD", "\"${project.getProperty("STRIPE_LOCATION_ID_PROD").replaceAll("^[\"\\s]*|[\"\\s]*\$", "")}\""
         buildConfigField "String", "STRIPE_API_KEY", "\"${project.getProperty("STRIPE_API_KEY").replaceAll("^[\"\\s]*|[\"\\s]*\$", "")}\""
     }
 
