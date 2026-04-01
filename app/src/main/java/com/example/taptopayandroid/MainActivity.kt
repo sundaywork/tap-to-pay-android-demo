@@ -292,6 +292,7 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
 
     private fun connectReader(useInternetReader: Boolean) {
         val locationId = if (ApiClient.isTestEnvironment) BuildConfig.STRIPE_LOCATION_ID_TEST else BuildConfig.STRIPE_LOCATION_ID_PROD
+        Log.i(TAG, "Start discovery. useInternetReader: $useInternetReader, locationId: $locationId")
 
         if (useInternetReader) {
             connectReaderInternet(locationId)
@@ -317,6 +318,8 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                         return
                     }
                     val reader = onlineReaders[0]
+                    Log.i(TAG, "Found physical reader: ${reader.serialNumber}, location: ${reader.location?.id}")
+                    
                     discoveryCancelable?.cancel(object : Callback {
                         override fun onSuccess() {}
                         override fun onFailure(e: TerminalException) {
@@ -334,16 +337,13 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                         connectionConfig,
                         object : ReaderCallback {
                             override fun onFailure(e: TerminalException) {
-                                Log.e(TAG, "connectReader failed", e)
+                                val fullError = e.errorMessage ?: e.message ?: "Unknown error"
+                                Log.e(TAG, "connectReader (Internet) failed! Full message: $fullError", e)
                                 runOnUiThread {
                                     supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                                         (it as? ConnectReaderFragment)?.resetConnectButton()
                                     }
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Connect reader failed: ${e.message}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                                    showErrorDialog("Connect Reader Failed", fullError)
                                 }
                             }
 
@@ -370,16 +370,13 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                 }
 
                 override fun onFailure(e: TerminalException) {
-                    Log.e(TAG, "Discovery failed", e)
+                    val fullError = e.errorMessage ?: e.message ?: "Unknown error"
+                    Log.e(TAG, "Discovery failed. Full message: $fullError", e)
                     runOnUiThread {
                         supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                             (it as? ConnectReaderFragment)?.resetConnectButton()
                         }
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Discover reader failed: ${e.message}",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        showErrorDialog("Discover Reader Failed", fullError)
                     }
                 }
             }
@@ -413,13 +410,14 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                         connectionConfig,
                         object : ReaderCallback {
                             override fun onFailure(e: TerminalException) {
-                                Log.e(TAG, "connectReader (Tap to Pay) failed", e)
+                                val fullError = e.errorMessage ?: e.message ?: "Unknown error"
+                                Log.e(TAG, "connectReader (Tap to Pay) failed! Full message: $fullError", e)
                                 runOnUiThread {
                                     supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                                         (it as? ConnectReaderFragment)?.resetConnectButton()
                                     }
-                                    (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onConnectionFailed(e.message ?: "Unknown error")
-                                    showErrorDialog("Connect Tap to Pay failed", e.message ?: "Unknown error")
+                                    (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onConnectionFailed(fullError)
+                                    showErrorDialog("Connect Tap to Pay failed", fullError)
                                 }
                             }
 
@@ -445,13 +443,14 @@ class MainActivity : AppCompatActivity(), NavigationListener, InternetReaderList
                 }
 
                 override fun onFailure(e: TerminalException) {
-                    Log.e(TAG, "Tap to Pay discovery failed", e)
+                    val fullError = e.errorMessage ?: e.message ?: "Unknown error"
+                    Log.e(TAG, "Tap to Pay discovery failed. Full message: $fullError", e)
                     runOnUiThread {
                         supportFragmentManager.findFragmentByTag(ConnectReaderFragment.TAG)?.let {
                             (it as? ConnectReaderFragment)?.resetConnectButton()
                         }
-                        (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onConnectionFailed(e.message ?: "Unknown error")
-                        showErrorDialog("Discover Tap to Pay failed", e.message ?: "Unknown error")
+                        (supportFragmentManager.findFragmentByTag(PaymentDetails.TAG) as? PaymentDetails)?.onConnectionFailed(fullError)
+                        showErrorDialog("Discover Tap to Pay failed", fullError)
                     }
                 }
             }
