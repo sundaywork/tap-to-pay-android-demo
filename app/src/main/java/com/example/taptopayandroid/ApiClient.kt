@@ -103,10 +103,17 @@ object ApiClient {
             if (incrementalAuth) cardPresent["request_incremental_authorization_support"] = true
             paymentMethodOptions["card_present"] = cardPresent
         }
+        
+        val merchantId = if (isTestEnvironment) BuildConfig.STRIPE_BOUND_MERCHANT_ID_TEST else BuildConfig.STRIPE_BOUND_MERCHANT_ID_PROD
+        val transferData = merchantId.takeIf { it.isNotBlank() }?.let { TransferData(destination = it) }
+        val onBehalfOf = merchantId.takeIf { it.isNotBlank() }
+
         val request = CreatePaymentIntentRequest(
             amount = amount,
             currency = currency,
-            payment_method_options = paymentMethodOptions.takeIf { it.isNotEmpty() }
+            payment_method_options = paymentMethodOptions.takeIf { it.isNotEmpty() },
+            on_behalf_of = onBehalfOf,
+            transfer_data = transferData
         )
         service.createPaymentIntent(request).enqueue(callback)
     }

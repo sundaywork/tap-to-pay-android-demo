@@ -24,6 +24,8 @@ android {
         buildConfigField "String", "STRIPE_BACKEND_URL_PROD", "\"${project.getProperty("STRIPE_BACKEND_URL_PROD").replaceAll("^[\"\\s]*|[\"\\s]*\$", "").replaceAll("/?\$", "/")}\""
         buildConfigField "String", "STRIPE_LOCATION_ID_TEST", "\"${project.getProperty("STRIPE_LOCATION_ID_TEST").replaceAll("^[\"\\s]*|[\"\\s]*\$", "")}\""
         buildConfigField "String", "STRIPE_LOCATION_ID_PROD", "\"${project.getProperty("STRIPE_LOCATION_ID_PROD").replaceAll("^[\"\\s]*|[\"\\s]*\$", "")}\""
+        buildConfigField "String", "STRIPE_BOUND_MERCHANT_ID_TEST", "\"${project.hasProperty("STRIPE_BOUND_MERCHANT_ID_TEST") ? project.getProperty("STRIPE_BOUND_MERCHANT_ID_TEST").replaceAll("^[\"\\s]*|[\"\\s]*\$", "") : ""}\""
+        buildConfigField "String", "STRIPE_BOUND_MERCHANT_ID_PROD", "\"${project.hasProperty("STRIPE_BOUND_MERCHANT_ID_PROD") ? project.getProperty("STRIPE_BOUND_MERCHANT_ID_PROD").replaceAll("^[\"\\s]*|[\"\\s]*\$", "") : ""}\""
         buildConfigField "String", "STRIPE_API_KEY", "\"${project.getProperty("STRIPE_API_KEY").replaceAll("^[\"\\s]*|[\"\\s]*\$", "")}\""
     }
 
